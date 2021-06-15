@@ -15,6 +15,8 @@
 
 import pygame, sys, os, random
 from pygame.locals import *
+from enum import Enum
+import devlpr_plugin as dp
 
 # WIN???
 SCRIPT_PATH=sys.path[0]
@@ -31,6 +33,16 @@ JS_DEVNUM=0 # device 0 (pygame joysticks always start at 0). if JS_DEVNUM is not
 JS_XAXIS=0 # axis 0 for left/right (default for most joysticks)
 JS_YAXIS=1 # axis 1 for up/down (default for most joysticks)
 JS_STARTBUTTON=0 # button number to start the game. this is a matter of personal preference, and will vary from device to device
+
+class Direction(Enum):
+    LEFT = 0
+    DOWN = 1
+    RIGHT = 2
+    UP = 3
+    ROTATE_CLKWISE = lambda dir : (dir + 1) % 4
+    ROTATE_CCLKWISE = lambda dir : dir - 1 if dir > 0 else UP
+
+curr_dir = Direction.RIGHT
 
 # Must come before pygame.init()
 pygame.mixer.pre_init(22050,16,2,512)
@@ -1339,31 +1351,63 @@ class level ():
 def CheckIfCloseButton(events):
     for event in events: 
         if event.type == pygame.QUIT: 
+            dp.stop()
             sys.exit(0)
+
+def Move(dir: Direction):
+    if dir == Direction.RIGHT:
+        MoveRight()
+    elif dir == Direction.LEFT:
+        MoveLeft()
+    elif dir == Direction.UP:
+        MoveUp()
+    elif dir == Direction.DOWN:
+        MoveDown()
+
+def MoveRight():
+    if not thisLevel.CheckIfHitWall(player.x + player.speed, player.y, player.nearestRow, player.nearestCol): 
+        player.velX = player.speed
+        player.velY = 0
+
+def MoveLeft():
+    if not thisLevel.CheckIfHitWall(player.x - player.speed, player.y, player.nearestRow, player.nearestCol): 
+        player.velX = -player.speed
+        player.velY = 0
+
+def MoveDown():
+    if not thisLevel.CheckIfHitWall(player.x, player.y + player.speed, player.nearestRow, player.nearestCol): 
+        player.velX = 0
+        player.velY = player.speed
+
+def MoveUp():
+    if not thisLevel.CheckIfHitWall(player.x, player.y - player.speed, player.nearestRow, player.nearestCol):
+        player.velX = 0
+        player.velY = -player.speed
+
+def MuscleMovement():
+    global curr_dir
+    turn_right = dp.reduceToFloat('grip_right', True)
+    turn_left  = dp.reduceToFloat('grip_left', True)
+
+    if turn_right:
+        curr_dir = Direction.ROTATE_CLKWISE(curr_dir)
+        Move(curr_dir)
+    elif turn_left:
+        curr_dir = Direction.ROTATE_CCLKWISE(curr_dir)
+        Move(curr_dir)
 
 
 def CheckInputs(): 
-    
     if thisGame.mode == 1:
+        MuscleMovement()
         if pygame.key.get_pressed()[ pygame.K_RIGHT ] or (js!=None and js.get_axis(JS_XAXIS)>0):
-            if not thisLevel.CheckIfHitWall(player.x + player.speed, player.y, player.nearestRow, player.nearestCol): 
-                player.velX = player.speed
-                player.velY = 0
-                
+            MoveRight()
         elif pygame.key.get_pressed()[ pygame.K_LEFT ] or (js!=None and js.get_axis(JS_XAXIS)<0):
-            if not thisLevel.CheckIfHitWall(player.x - player.speed, player.y, player.nearestRow, player.nearestCol): 
-                player.velX = -player.speed
-                player.velY = 0
-            
+            MoveLeft()
         elif pygame.key.get_pressed()[ pygame.K_DOWN ] or (js!=None and js.get_axis(JS_YAXIS)>0):
-            if not thisLevel.CheckIfHitWall(player.x, player.y + player.speed, player.nearestRow, player.nearestCol): 
-                player.velX = 0
-                player.velY = player.speed
-            
+            MoveDown()
         elif pygame.key.get_pressed()[ pygame.K_UP ] or (js!=None and js.get_axis(JS_YAXIS)<0):
-            if not thisLevel.CheckIfHitWall(player.x, player.y - player.speed, player.nearestRow, player.nearestCol):
-                player.velX = 0
-                player.velY = -player.speed
+            MoveUp()
                 
     if pygame.key.get_pressed()[ pygame.K_ESCAPE ]:
         sys.exit(0)
@@ -1439,6 +1483,10 @@ def GetCrossRef ():
 
 #      __________________
 # ___/  main code block  \_____________________________________________________
+
+dp.start()
+dp.watch('raw')
+dp.watch('data')
 
 # create the pacman
 player = pacman()
