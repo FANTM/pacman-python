@@ -1386,8 +1386,8 @@ def MoveUp():
 
 def MuscleMovement():
     global curr_dir
-    turn_right = dp.reduceToFloat('grip_right', True)
-    turn_left  = dp.reduceToFloat('grip_left', True)
+    turn_right = dp.reduceToFlag('grip_right')
+    turn_left  = dp.reduceToFlag('grip_left')
 
     if turn_right:
         curr_dir = Direction.ROTATE_CLKWISE(curr_dir)
